@@ -1,7 +1,5 @@
 # Pinterest Data Pipeline
 
----
-
 <p align="justify">
 This project focuses on designing a scalable and efficient data processing system within the AWS cloud infrastructure, drawing inspiration from the data management capabilities of leading social platforms. The goal is to create a system capable of handling large-scale data workflows, encompassing ingestion, storage, processing, and analysis. However, in this case, the data is stored locally in MySQL. </p>
 <p align="justify">
