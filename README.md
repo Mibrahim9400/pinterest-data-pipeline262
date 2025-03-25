@@ -54,16 +54,38 @@ The following modules need to be installed:
 
 This milestone establishes the groundwork for managing Pinterest-like data in this project.
 
+
 ## Milestones 3-7
 
 This section describes the process of setting up a Kafka-based pipeline to enable batch processing of data. The pipeline integrates multiple tools to efficiently manage, clean, and monitor the data workflow.
 
 ### 1. **Create Kafka Topics**
 - Kafka topics are created using the `kafka-python` library. These topics serve as message queues for data ingestion into the pipeline.
-- The API will be built to send data to these Kafka topics, allowing for seamless data streaming.
+- The API will be built to send data to these Kafka topics, allowing for seamless data streaming. Refer to the code for a clearer visual understanding
+
+**Start Zookeeper:**
+<p align="justify">
+Apache ZooKeeper is used for coordinating and managing distributed systems, providing features like configuration management, leader election, and distributed locking.</p>
+
+```
+./bin/zookeeper-server-start.sh -daemon config/zookeeper.properties
+```
+
+**Start Kafka:**
+<p align="justify">
+Apache Kafka is a distributed event streaming platform used for building real-time data pipelines and streaming applications.</p>
+
+```
+./bin/kafka-server-start.sh config/server.properties
+```
+
+**Run Script:** 
+```
+python main.py
+```
 
 ### 2. **Batch Processing Initialization**
-- Once the data is published to Kafka topics, it marks the beginning of the batch processing workflow. 
+- Once the data is published to Kafka topics, it marks the beginning of the batch processing workflow.
 
 ### 3. **Data Cleaning in Databricks**
 - The ingested data from Kafka is consumed and cleaned in **Databricks**, ensuring data consistency and quality.
