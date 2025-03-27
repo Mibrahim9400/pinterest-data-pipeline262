@@ -68,7 +68,7 @@ This section describes the process of setting up a Kafka-based pipeline to enabl
 Apache ZooKeeper is used for coordinating and managing distributed systems, providing features like configuration management, leader election, and distributed locking.</p>
 
 ```
-./bin/zookeeper-server-start.sh -daemon config/zookeeper.properties
+bin/zookeeper-server-start.sh -daemon config/zookeeper.properties
 ```
 
 **Start Kafka:**
@@ -76,7 +76,7 @@ Apache ZooKeeper is used for coordinating and managing distributed systems, prov
 Apache Kafka is a distributed event streaming platform used for building real-time data pipelines and streaming applications.</p>
 
 ```
-./bin/kafka-server-start.sh config/server.properties
+bin/kafka-server-start.sh config/server.properties
 ```
 
 **Run Script:** 
