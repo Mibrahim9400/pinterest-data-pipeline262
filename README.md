@@ -88,6 +88,18 @@ python main.py
 ### 2. **Batch Processing Initialization**
 - Once the data is published to Kafka topics, it marks the beginning of the batch processing workflow.
 
+**Check Kafka topics:** 
+```
+bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic {Your Topic} --from-beginning
+```
+
+Or
+
+**Retrieve the current offsets for Kafka topics:**
+```
+bin/kafka-get-offsets.sh --bootstrap-server localhost:9092 --topic demo-get-offsets
+```
+
 ### 3. **Data Cleaning in Databricks**
 - The ingested data from Kafka is consumed and cleaned in **Databricks**, ensuring data consistency and quality.
 - Databricks offers scalable and efficient processing of large datasets, making it a key component of the pipeline.
