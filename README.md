@@ -28,6 +28,7 @@ Project Related Files:
 ### Project Libraries
 The following modules need to be installed:
 - `Kafka-python`
+- `PySpark`
 - `Thread`
 - `sqlalchemy`
 - `requests`
