@@ -90,7 +90,7 @@ python main.py
 
 **Check Kafka topics:** 
 ```
-bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic {Your Topic} --from-beginning
+bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic --from-beginning
 ```
 
 Or
