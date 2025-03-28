@@ -80,13 +80,30 @@ Apache Kafka is a distributed event streaming platform used for building real-ti
 bin/kafka-server-start.sh config/server.properties
 ```
 
+- Created a `folder-sink.properties` file to configure **Kafka Connect** and set up the **FileStreamSink Connector**. This setup enables consuming messages from a Kafka topic and storing them locally as JSON files using the `kafka/config` properties with the following configuration.
+
+```
+name=local-json-file-sink
+connector.class=FileStreamSink
+tasks.max=1
+topics=kafka_test #(Changed to my topics)
+file=/home/<my user>/connectors/sink/kafka_test.json #(Changed to my specified path)
+# Use simple string for keys
+key.converter=org.apache.kafka.connect.storage.StringConverter
+# Use JSON for values (no schema)
+value.converter=org.apache.kafka.connect.json.JsonConverter
+value.converter.schemas.enable=false
+```
+
+**Run Kafka Connect:**
+```
+bin/connect-standalone.sh -daemon config/connect-standalone.properties config/folder-sink.properties
+```
+
 **Run Script:** 
 ```
 python main.py
 ```
-
-### 2. **Batch Processing Initialization**
-- Once the data is published to Kafka topics, it marks the beginning of the batch processing workflow.
 
 **Check Kafka topics:** 
 ```
@@ -99,6 +116,9 @@ Or
 ```
 bin/kafka-get-offsets.sh --bootstrap-server localhost:9092 --topic demo-get-offsets
 ```
+
+### 2. **Batch Processing Initialization**
+- Once the data is published to Kafka topics, it marks the beginning of the batch processing workflow.
 
 ### 3. **Data Cleaning in Databricks**
 - The ingested data from Kafka is consumed and cleaned in **Databricks**, ensuring data consistency and quality.
