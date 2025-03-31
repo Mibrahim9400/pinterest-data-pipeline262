@@ -124,6 +124,136 @@ bin/kafka-get-offsets.sh --bootstrap-server localhost:9092 --topic demo-get-offs
 - The ingested data from Kafka is consumed and cleaned in **Databricks**, ensuring data consistency and quality.
 - Databricks offers scalable and efficient processing of large datasets, making it a key component of the pipeline.
 
+## Task 1 - Cleaning Dataframes containing Pinterest posts
+```python
+# Required Dictionairies
+from pyspark.sql.functions import *
+from pyspark.sql.types import IntegerType
+from pyspark.sql.functions import split
+
+# Path to the JSON file in Databricks
+file_path = "/FileStore/tables/df_pin/kafka_test-1.json"
+file_type = "json"
+
+# Read in JSON from the local DBFS location
+df_pin = spark.read.format(file_type).load(file_path)
+
+# Display DataFrame
+# display(df_pin)
+
+#Data Cleaning: Dropping Duplicates
+df_pin = df_pin.dropDuplicates()
+Drop_dup = df_pin.count() 
+print(f'{Drop_dup} rows')
+
+# Replace  empty entries and entries with no relevant data with None
+df_pin = df_pin.replace({
+    'User Info Error': None,
+    'No description available Story format': None,
+    'Image src error.': None,
+    'N,o, ,T,a,g,s, ,A,v,a,i,l,a,b,l,e': None,
+    'No Title Data Available': None
+}, subset=['follower_count', 'description', 'image_src', 'tag_list', 'title'])
+
+
+# Converts K = 1000 and M = 1000000 into digits
+df_pin = df_pin.withColumn(
+    "follower_count",
+    when(col("follower_count").contains("k"), 
+         regexp_replace(col("follower_count"), "k", "").cast("double") * 1000)
+    .when(col("follower_count").contains("M"), 
+         regexp_replace(col("follower_count"), "M", "").cast("double") * 1000000)
+    .otherwise(col("follower_count").cast("integer"))
+    .cast(IntegerType())
+)
+
+# Columns containing numeric data has a numeric data type
+numeric_columns = ["downloaded", "index"]
+for col_name in numeric_columns:
+    df_pin = df_pin.withColumn(col_name, col(col_name).cast(IntegerType()))
+
+# Clean the data in the save_location column to include only the save location path
+df_pin = df_pin.withColumn("save_location", split("save_location", "Local save in ").getItem(1))
+
+# index column to ind. 
+df_pin = df_pin.withColumnRenamed("index", "ind")
+
+
+# Reorder the DataFrame columns 
+df_pin = df_pin.select(
+    "ind", "unique_id", "title", "description", "follower_count", 
+    "poster_name", "tag_list", "is_image_or_video", "image_src", 
+    "save_location", "category"
+)
+
+display(df_pin)
+```
+
+## Task 2 - Cleaning Dataframes containing geolocation information
+``` python
+from pyspark.sql import functions as F
+from pyspark.sql.types import TimestampType
+
+# Path to the JSON file in Databricks
+file_path = "/FileStore/tables/df_geo/geo_mo.json"
+file_type = "json"
+
+# Read in JSON from the local DBFS location
+df_geo = spark.read.format(file_type).load(file_path)
+# display(df_geo)
+
+# drop dulpicate rows
+df_geo = df_geo.dropDuplicates()
+Drop_dup = df_geo.count() 
+print(f'{Drop_dup} rows')
+
+# Create the coordinates column
+df_geo = df_geo.withColumn("coordinates", F.array("latitude", "longitude"))
+
+# Drop the latitude and longitude columns
+df_geo = df_geo.drop("latitude", "longitude")
+
+#Convert the timestamp column to TimestampType
+df_geo = df_geo.withColumn("timestamp", F.col("timestamp").cast(TimestampType())) 
+
+# Reorder columns
+df_geo = df_geo.select("ind", "country", "coordinates", "timestamp")
+display(df_geo)
+```
+
+## Task 3 - Cleaning Dataframes containing users information
+
+```python
+from pyspark.sql import functions as F
+from pyspark.sql.types import TimestampType
+
+# Path to the JSON file in Databricks
+file_path = "/FileStore/tables/df_user/user_mo.json"
+file_type = "json"
+
+# Read in JSON from the local DBFS location
+df_user = spark.read.format(file_type).load(file_path)
+display(df_user)
+
+# drop dulpicate rows
+df_user = df_user.dropDuplicates()
+Drop_dup = df_user.count() 
+print(f'{Drop_dup} rows')
+
+# Create a new column user_name that concatenates the information found in the first_name and last_name columns
+df_user = df_user.withColumn("user_name", F.array("first_name", "last_name"))
+
+# Drop the first_name and last_name columns
+df_user = df_user.drop("first_name", "last_name")
+
+# Convert the date_joined column from a string to a timestamp data type
+df_user = df_user.withColumn("date_joined", F.col("date_joined").cast(TimestampType()))
+
+# Reorder columns
+df_user = df_user.select("ind", "user_name", "age", "date_joined")
+display(df_user)
+```
+
 ### 4. **Workflow Monitoring with Apache Airflow**
 - After cleaning, the data is uploaded to **Apache Airflow**.
 - Airflow is used to orchestrate and monitor workflows, ensuring that all batch processes are executed correctly and on schedule.
