@@ -150,23 +150,17 @@ bin/kafka-get-offsets.sh --bootstrap-server localhost:9092 --topic demo-get-offs
 from pyspark.sql.functions import *
 from pyspark.sql.types import IntegerType
 from pyspark.sql.functions import split
+from pyspark.sql import functions as F
+from pyspark.sql.types import TimestampType
 
-# Path to the JSON file in Databricks
-file_path = "/FileStore/tables/df_pin/kafka_test-1.json"
-file_type = "json"
+# Load table from Databricks Catalog
+df_pin = spark.read.table("workspace.default.kafka_test_1")
 
-# Read in JSON from the local DBFS location
-df_pin = spark.read.format(file_type).load(file_path)
-
-# Display DataFrame
-# display(df_pin)
-
-#Data Cleaning: Dropping Duplicates
+# Drop Duplicates
 df_pin = df_pin.dropDuplicates()
-Drop_dup = df_pin.count() 
-print(f'{Drop_dup} rows')
+print(f'{df_pin.count()} rows')
 
-# Replace  empty entries and entries with no relevant data with None
+# Replace unwanted values with None
 df_pin = df_pin.replace({
     'User Info Error': None,
     'No description available Story format': None,
@@ -175,8 +169,7 @@ df_pin = df_pin.replace({
     'No Title Data Available': None
 }, subset=['follower_count', 'description', 'image_src', 'tag_list', 'title'])
 
-
-# Converts K = 1000 and M = 1000000 into digits
+# Convert follower_count to numeric
 df_pin = df_pin.withColumn(
     "follower_count",
     when(col("follower_count").contains("k"), 
@@ -187,25 +180,25 @@ df_pin = df_pin.withColumn(
     .cast(IntegerType())
 )
 
-# Columns containing numeric data has a numeric data type
+# Convert columns to IntegerType
 numeric_columns = ["downloaded", "index"]
 for col_name in numeric_columns:
     df_pin = df_pin.withColumn(col_name, col(col_name).cast(IntegerType()))
 
-# Clean the data in the save_location column to include only the save location path
-df_pin = df_pin.withColumn("save_location", split("save_location", "Local save in ").getItem(1))
+# Extract path from save_location
+df_pin = df_pin.withColumn("save_location", split(col("save_location"), "Local save in ").getItem(1))
 
-# index column to ind. 
+# Rename index column
 df_pin = df_pin.withColumnRenamed("index", "ind")
 
-
-# Reorder the DataFrame columns 
+# Reorder columns
 df_pin = df_pin.select(
     "ind", "unique_id", "title", "description", "follower_count", 
     "poster_name", "tag_list", "is_image_or_video", "image_src", 
     "save_location", "category"
 )
 
+# Display cleaned DataFrame
 clean_pin = df_pin
 display(clean_pin)
 ```
@@ -222,16 +215,8 @@ display(clean_pin)
    - `timestamp`
 
 ``` python
-from pyspark.sql import functions as F
-from pyspark.sql.types import TimestampType
-
-# Path to the JSON file in Databricks
-file_path = "/FileStore/tables/df_geo/geo_mo.json"
-file_type = "json"
-
-# Read in JSON from the local DBFS location
-df_geo = spark.read.format(file_type).load(file_path)
-# display(df_geo)
+# Load table from Databricks Catalog
+df_geo = spark.read.table("workspace.default.geo_mo")
 
 # drop dulpicate rows
 df_geo = df_geo.dropDuplicates()
@@ -265,16 +250,8 @@ display(clean_geo)
    - `date_joined`
  
 ```python
-from pyspark.sql import functions as F
-from pyspark.sql.types import TimestampType
-
-# Path to the JSON file in Databricks
-file_path = "/FileStore/tables/df_user/user_mo.json"
-file_type = "json"
-
-# Read in JSON from the local DBFS location
-df_user = spark.read.format(file_type).load(file_path)
-display(df_user)
+# Load table from Databricks Catalog
+df_user = spark.read.table("workspace.default.user_mo")
 
 # drop dulpicate rows
 df_user = df_user.dropDuplicates()
@@ -402,6 +379,10 @@ display(most_followers)
    - `category_count`: The count of posts in each category for the corresponding age group.
 
 ``` python
+# Task 7
+clean_pin.createOrReplaceTempView("clean_pin")
+clean_user.createOrReplaceTempView("clean_user")
+
 age_group = spark.sql("""
 WITH AGERANGE AS (
     SELECT 
@@ -413,8 +394,8 @@ WITH AGERANGE AS (
             WHEN u.age BETWEEN 36 AND 50 THEN '36-50'
             ELSE '+50'
         END AS age_group
-    FROM global_temp.clean_user u
-    INNER JOIN global_temp.clean_pin p 
+    FROM clean_user u
+    INNER JOIN clean_pin p 
         ON u.ind = p.ind
 ),
 
@@ -423,7 +404,7 @@ Categories AS (
         age_group, 
         category, 
         COUNT(*) AS category_count,
-        RANK() OVER (PARTITION BY age_group ORDER BY COUNT(*) DESC)
+        RANK() OVER (PARTITION BY age_group ORDER BY COUNT(*) DESC) AS rank
     FROM AGERANGE
     GROUP BY age_group, category
 )
@@ -457,8 +438,8 @@ WITH AgeGroups AS (
             WHEN u.age BETWEEN 36 AND 50 THEN '36-50'
             ELSE '+50'
         END AS age_group
-    FROM global_temp.clean_user u
-    JOIN global_temp.clean_pin p
+    FROM clean_user u
+    JOIN clean_pin p 
     ON u.ind = p.ind
 )
 
@@ -483,7 +464,7 @@ user_joined = spark.sql("""
 SELECT
     YEAR(date_joined) AS post_year,
     COUNT(*) AS number_users_joined
-FROM global_temp.clean_user
+FROM clean_user
 WHERE YEAR(date_joined) BETWEEN 2015 AND 2020
 GROUP BY post_year
 ORDER BY post_year
@@ -499,17 +480,19 @@ display(user_joined)
    - `median_follower_count,`: A new column containing the desired query output
 
 ``` python
-user_joined = spark.sql("""
+median_count = spark.sql("""
 SELECT
-    YEAR(date_joined) AS post_year,
-    COUNT(*) AS number_users_joined
-FROM global_temp.clean_user
-WHERE YEAR(date_joined) BETWEEN 2015 AND 2020
+    YEAR(CAST(u.date_joined AS DATE)) AS post_year, 
+    percentile_approx(p.follower_count, 0.5, 100) AS median_followers_count  
+FROM clean_user u
+JOIN clean_pin p
+ON u.ind = p.ind
+WHERE YEAR(CAST(u.date_joined AS DATE)) BETWEEN 2015 AND 2020
 GROUP BY post_year
-ORDER BY post_year
+ORDER BY post_year ASC
 """)
 
-display(user_joined)
+display(median_count)
 ```
 
 ## Task 11 - Find the most popular Category in each year
@@ -530,8 +513,8 @@ WITH AGEGROUPS AS (
     END AS age_group,
     YEAR(CAST(u.date_joined AS DATE)) AS post_year,
     p.follower_count
-    FROM global_temp.clean_user u
-    JOIN global_temp.clean_pin p 
+    FROM clean_user u
+    JOIN clean_pin p 
     ON u.ind = p.ind
     WHERE YEAR(CAST(u.date_joined AS DATE)) BETWEEN 2015 AND 2020
 )
