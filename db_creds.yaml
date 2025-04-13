@@ -1,6 +1,0 @@
-# Database Credentials
-HOST:  "172.22.224.1"  # "172.22.237.195"
-USER: "wsl_root"
-PASSWORD: "password"   # "J_prosolution"
-DATABASE: "pinterest_data"
-PORT: 3306
