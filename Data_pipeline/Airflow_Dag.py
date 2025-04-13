@@ -5,7 +5,7 @@ from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
 import pandas as pd
 
-# Define Databricks connection ID (configured in Airflow UI)
+# Define Databricks connection ID
 DATABRICKS_CONN_ID = 'databricks_default'
 
 # Define Databricks Job ID 
@@ -53,5 +53,5 @@ with DAG(
         python_callable=fetch_cleaned_data,
     )
 
-    # Define task dependencies: Run Databricks job first, then fetch data
+    # Task dependencies: Run Databricks job first, then fetch data
     opr_run_existing_job >> fetch_data
